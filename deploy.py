@@ -49,8 +49,7 @@ reasoning_engine = reasoning_engines.ReasoningEngine.create(
     ],
     extra_packages=["scripts", "SKILL.md", "agent.py", "hubscape_adk.py"], # Packages the local skill definition, script tools, agent class, and adk proxy
     display_name="todo-agent",
-    description=f"Managed GEAP agent for user personal to-do lists. [agent_uuid: {agent_uuid}]",
-    service_account=f"firebase-adminsdk-fbsvc@{PROJECT_ID}.iam.gserviceaccount.com"
+    description=f"Managed GEAP agent for user personal to-do lists. [agent_uuid: {agent_uuid}]"
 )
 
 print("\n🎉 Deployment Successful!")
