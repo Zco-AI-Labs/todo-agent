@@ -1,15 +1,38 @@
 import os
 import asyncio
+import importlib.util
+import re
 from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
-from google.antigravity.types import BuiltinTools
+from google.antigravity.types import BuiltinTools, CustomSystemInstructions
+
+def load_local_tools(scripts_dir: str) -> list:
+    tools = []
+    if not os.path.exists(scripts_dir):
+        return tools
+    for filename in os.listdir(scripts_dir):
+        if filename.endswith(".py") and not filename.startswith("_"):
+            module_name = filename[:-3]
+            file_path = os.path.join(scripts_dir, filename)
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                if spec and spec.loader:
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    func = getattr(module, module_name, None)
+                    if func and callable(func):
+                        tools.append(func)
+            except Exception:
+                pass
+    return tools
 
 class TodoAgent:
     def __init__(self):
-        # Initialize configuration with standard/empty properties.
-        # Paths and workspaces will be populated dynamically at runtime.
+        # Initialize configuration with empty properties.
+        # We will load paths, tools, and system prompt dynamically at runtime.
         self.config = LocalAgentConfig(
             skills_paths=[],
             workspaces=[],
+            tools=[],
             capabilities=CapabilitiesConfig(
                 disabled_tools=[
                     BuiltinTools.LIST_DIR,
@@ -34,6 +57,19 @@ class TodoAgent:
         """
         # Resolve path to container's local skill directory dynamically at runtime
         runtime_dir = os.path.dirname(os.path.abspath(__file__))
+        scripts_dir = os.path.join(runtime_dir, "scripts")
+        skill_md_path = os.path.join(runtime_dir, "SKILL.md")
+        
+        # Load the custom system instruction from SKILL.md (overriding default developer prompt)
+        if os.path.exists(skill_md_path):
+            with open(skill_md_path, "r", encoding="utf-8") as f:
+                skill_content = f.read()
+            # Strip frontmatter
+            content_stripped = re.sub(r"^---.*?---", "", skill_content, flags=re.DOTALL).strip()
+            self.config.system_instructions = CustomSystemInstructions(text=content_stripped)
+        
+        # Load local python scripts as tools
+        self.config.tools = load_local_tools(scripts_dir)
         self.config.skills_paths = [runtime_dir]
         self.config.workspaces = []
         
