@@ -48,22 +48,20 @@ reasoning_engine = reasoning_engines.ReasoningEngine.create(
     ],
     extra_packages=["scripts", "SKILL.md", "agent.py"], # Packages the local skill definition, script tools, and agent class
     display_name="todo-agent",
-    description="Managed GEAP agent for user personal to-do lists.",
-    labels={
-        "agent_uuid": agent_uuid
-    }
+    description=f"Managed GEAP agent for user personal to-do lists. [agent_uuid: {agent_uuid}]"
 )
 
 print("\n🎉 Deployment Successful!")
 print(f"GEAP Resource Name: {reasoning_engine.resource_name}")
 
-# Post-Deployment Cleanup: Delete older deployments of the same agent (matching UUID)
+# Post-Deployment Cleanup: Delete older deployments of the same agent (matching UUID in description)
 try:
+    uuid_token = f"[agent_uuid: {agent_uuid}]"
     print(f"\n🧹 Cleaning up older todo-agent deployments on GCP matching UUID {agent_uuid}...")
     all_engines = reasoning_engines.ReasoningEngine.list()
     for engine in all_engines:
-        engine_labels = getattr(engine, "labels", {}) or {}
-        if engine_labels.get("agent_uuid") == agent_uuid and engine.resource_name != reasoning_engine.resource_name:
+        engine_desc = getattr(engine, "description", "") or ""
+        if uuid_token in engine_desc and engine.resource_name != reasoning_engine.resource_name:
             print(f"Deleting stale engine instance: {engine.resource_name}...")
             engine.delete()
             print(f"Successfully deleted {engine.resource_name}.")
