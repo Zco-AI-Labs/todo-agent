@@ -4,6 +4,7 @@ import importlib.util
 import re
 from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
 from google.antigravity.types import BuiltinTools, CustomSystemInstructions
+from google.antigravity.hooks import policy
 
 def load_local_tools(scripts_dir: str) -> list:
     tools = []
@@ -45,6 +46,7 @@ class TodoAgent:
                     BuiltinTools.GENERATE_IMAGE
                 ]
             ),
+            policies=[policy.allow_all()],
             vertex=True,
             project=os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap",
             location=os.getenv("GCP_LOCATION") or os.getenv("LOCATION") or "us-central1",
