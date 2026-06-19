@@ -20,7 +20,7 @@ class TodoAgent:
         async with Agent(config=self.config) as agent:
             response = await agent.chat(question)
             await response.resolve()
-            return response.text()
+            return await response.text()
 
 # Singleton instance used as the serialization target
 todo_agent_app = TodoAgent()
