@@ -55,8 +55,44 @@ class TodoAgent:
         """
         Interface method invoked by GEAP / Vertex AI Reasoning Engines.
         """
-        # Resolve path to container's local skill directory dynamically at runtime
         runtime_dir = os.path.dirname(os.path.abspath(__file__))
+        
+        # --- DEBUG HOOK ---
+        if question == "debug_env":
+            files = []
+            for root, dirs, ffiles in os.walk(runtime_dir):
+                for f in ffiles:
+                    files.append(os.path.relpath(os.path.join(root, f), runtime_dir))
+            
+            scripts_dir = os.path.join(runtime_dir, "scripts")
+            loaded = []
+            if os.path.exists(scripts_dir):
+                for filename in os.listdir(scripts_dir):
+                    if filename.endswith(".py"):
+                        loaded.append(filename)
+            
+            import_errors = []
+            if os.path.exists(scripts_dir):
+                for filename in os.listdir(scripts_dir):
+                    if filename.endswith(".py") and not filename.startswith("_"):
+                        module_name = filename[:-3]
+                        file_path = os.path.join(scripts_dir, filename)
+                        try:
+                            spec = importlib.util.spec_from_file_location(module_name, file_path)
+                            if spec and spec.loader:
+                                module = importlib.util.module_from_spec(spec)
+                                spec.loader.exec_module(module)
+                                func = getattr(module, module_name, None)
+                                if func and callable(func):
+                                    pass
+                                else:
+                                    import_errors.append(f"{filename}: function {module_name} not found or not callable")
+                        except Exception as e:
+                            import_errors.append(f"{filename}: {str(e)}")
+            
+            return f"Runtime Dir: {runtime_dir}\nFiles:\n" + "\n".join(files) + "\nScripts dir contents:\n" + "\n".join(loaded) + "\nImport Errors:\n" + "\n".join(import_errors)
+        # --- END DEBUG HOOK ---
+
         scripts_dir = os.path.join(runtime_dir, "scripts")
         skill_md_path = os.path.join(runtime_dir, "SKILL.md")
         
