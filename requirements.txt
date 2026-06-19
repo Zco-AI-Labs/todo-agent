@@ -1,0 +1,4 @@
+google-antigravity-sdk
+google-cloud-aiplatform
+cloudpickle==3.0.0
+pydantic>=2.0
