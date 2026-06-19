@@ -9,7 +9,8 @@ class TodoAgent:
             skills_paths=[os.path.dirname(os.path.abspath(__file__))],
             vertex=True,
             project=os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap",
-            location=os.getenv("GCP_LOCATION") or os.getenv("LOCATION") or "us-central1"
+            location=os.getenv("GCP_LOCATION") or os.getenv("LOCATION") or "us-central1",
+            model="gemini-1.5-flash"
         )
 
     async def query(self, question: str) -> str:
