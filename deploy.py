@@ -44,9 +44,10 @@ reasoning_engine = reasoning_engines.ReasoningEngine.create(
     requirements=[
         "google-antigravity",
         "google-cloud-aiplatform",
+        "google-cloud-firestore",
         "cloudpickle==3.0.0"
     ],
-    extra_packages=["scripts", "SKILL.md", "agent.py"], # Packages the local skill definition, script tools, and agent class
+    extra_packages=["scripts", "SKILL.md", "agent.py", "hubscape_adk.py"], # Packages the local skill definition, script tools, agent class, and adk proxy
     display_name="todo-agent",
     description=f"Managed GEAP agent for user personal to-do lists. [agent_uuid: {agent_uuid}]"
 )

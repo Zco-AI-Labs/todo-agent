@@ -51,7 +51,7 @@ class TodoAgent:
             model="gemini-2.5-flash"
         )
 
-    async def query(self, question: str) -> str:
+    async def query(self, question: str, context: dict = None) -> str:
         """
         Interface method invoked by GEAP / Vertex AI Reasoning Engines.
         """
@@ -109,10 +109,15 @@ class TodoAgent:
         self.config.skills_paths = [runtime_dir]
         self.config.workspaces = []
         
-        async with Agent(config=self.config) as agent:
-            response = await agent.chat(question)
-            await response.resolve()
-            return await response.text()
+        import hubscape_adk
+        user_id = (context or {}).get("userId") or "anonymous_user"
+        remote_ctx = hubscape_adk.RemoteContext(user_id=user_id)
+        
+        with hubscape_adk.context_session(remote_ctx):
+            async with Agent(config=self.config) as agent:
+                response = await agent.chat(question)
+                await response.resolve()
+                return await response.text()
 
 # Singleton instance used as the serialization target
 todo_agent_app = TodoAgent()
