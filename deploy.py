@@ -29,3 +29,17 @@ reasoning_engine = reasoning_engines.ReasoningEngine.create(
 
 print("\n🎉 Deployment Successful!")
 print(f"GEAP Resource Name: {reasoning_engine.resource_name}")
+
+# Post-Deployment Cleanup: Delete older deployments of the same agent
+try:
+    print("\n🧹 Cleaning up older todo-agent deployments on GCP...")
+    all_engines = reasoning_engines.ReasoningEngine.list()
+    for engine in all_engines:
+        if engine.display_name == "todo-agent" and engine.resource_name != reasoning_engine.resource_name:
+            print(f"Deleting stale engine instance: {engine.resource_name}...")
+            engine.delete()
+            print(f"Successfully deleted {engine.resource_name}.")
+    print("✨ Cleanup complete!")
+except Exception as cleanup_err:
+    print(f"⚠️ Non-critical error during old deployment cleanup: {cleanup_err}")
+
