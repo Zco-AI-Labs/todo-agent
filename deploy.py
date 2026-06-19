@@ -18,7 +18,7 @@ print("Deploying todo-agent to GEAP Agent Registry...")
 reasoning_engine = reasoning_engines.ReasoningEngine.create(
     todo_agent_app,
     requirements=[
-        "google-antigravity-sdk",
+        "google-antigravity",
         "google-cloud-aiplatform",
         "cloudpickle==3.0.0"
     ],
