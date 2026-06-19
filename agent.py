@@ -111,7 +111,7 @@ class TodoAgent:
         
         import hubscape_adk
         user_id = (context or {}).get("userId") or "anonymous_user"
-        remote_ctx = hubscape_adk.RemoteContext(user_id=user_id)
+        remote_ctx = hubscape_adk.RemoteContext(user_id=user_id, project_id=self.config.project)
         
         with hubscape_adk.context_session(remote_ctx):
             async with Agent(config=self.config) as agent:

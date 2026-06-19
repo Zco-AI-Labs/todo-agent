@@ -13,15 +13,17 @@ class RemoteAuth:
         return self.user_id
 
 class RemoteContext:
-    def __init__(self, user_id: str):
+    def __init__(self, user_id: str, project_id: str = None):
         self.auth = RemoteAuth(user_id)
+        self.project_id = project_id
         self._db = None
 
     @property
     def db(self):
         if self._db is None:
             # Under Vertex AI, ADC credentials will be picked up automatically
-            self._db = firestore.Client()
+            # Explicitly specifying the project ID ensures correct database binding
+            self._db = firestore.Client(project=self.project_id)
         return self._db
 
 def get_context() -> RemoteContext:
