@@ -22,7 +22,7 @@ reasoning_engine = reasoning_engines.ReasoningEngine.create(
         "google-cloud-aiplatform",
         "cloudpickle==3.0.0"
     ],
-    extra_packages=["scripts", "SKILL.md"], # Packages the local skill definition and script tools
+    extra_packages=["scripts", "SKILL.md", "agent.py"], # Packages the local skill definition, script tools, and agent class
     display_name="todo-agent",
     description="Managed GEAP agent for user personal to-do lists."
 )
