@@ -10,7 +10,7 @@ class TodoAgent:
             vertex=True,
             project=os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap",
             location=os.getenv("GCP_LOCATION") or os.getenv("LOCATION") or "us-central1",
-            model="gemini-1.5-flash"
+            model="gemini-2.5-flash"
         )
 
     async def query(self, question: str) -> str:
