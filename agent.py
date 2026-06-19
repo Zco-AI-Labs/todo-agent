@@ -92,7 +92,19 @@ class TodoAgent:
                         except Exception as e:
                             import_errors.append(f"{filename}: {str(e)}")
             
-            return f"Runtime Dir: {runtime_dir}\nFiles:\n" + "\n".join(files) + "\nScripts dir contents:\n" + "\n".join(loaded) + "\nImport Errors:\n" + "\n".join(import_errors)
+            import urllib.request
+            sa_email = "Unknown"
+            try:
+                req = urllib.request.Request(
+                    "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email",
+                    headers={"Metadata-Flavor": "Google"}
+                )
+                with urllib.request.urlopen(req, timeout=2) as response:
+                    sa_email = response.read().decode("utf-8").strip()
+            except Exception as e:
+                sa_email = f"Error: {e}"
+            
+            return f"Active Service Account: {sa_email}\nRuntime Dir: {runtime_dir}\nFiles:\n" + "\n".join(files) + "\nScripts dir contents:\n" + "\n".join(loaded) + "\nImport Errors:\n" + "\n".join(import_errors)
         # --- END DEBUG HOOK ---
 
         scripts_dir = os.path.join(runtime_dir, "scripts")
