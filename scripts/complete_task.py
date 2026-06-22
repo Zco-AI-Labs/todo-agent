@@ -16,21 +16,24 @@ def complete_task(task_id: str) -> dict:
         user_id = context.auth.get_user_id()
         logger.info(f"Completing task {task_id} for user {user_id}")
         
-        tasks_ref = context.db.collection('platform_users').document(user_id).collection('adk_tasks')
-        doc_ref = tasks_ref.document(task_id)
-        
-        doc = doc_ref.get()
-        if not doc.exists:
+        task = context.get("user", "tasks", task_id)
+        if not task:
             return {"error": "Task not found. Please ask the user to verify the task ID."}
             
-        doc_ref.update({
-            "status": "completed",
-            "completed_at": datetime.now(timezone.utc).isoformat()
-        })
+        import datetime
+        context.save(
+            scope="user",
+            collection_name="tasks",
+            doc_id=task_id,
+            data={
+                "status": "completed",
+                "completed_at": datetime.datetime.now(datetime.timezone.utc).isoformat()
+            }
+        )
         
         return {
             "status": "success",
-            "message": f"Task '{doc.to_dict().get('name')}' marked as complete."
+            "message": f"Task '{task.get('name')}' marked as complete."
         }
     except Exception as e:
         tb = traceback.format_exc()
