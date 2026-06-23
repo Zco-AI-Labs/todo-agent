@@ -36,6 +36,6 @@ jobs:
         env:
           GCP_PROJECT_ID: ${{ vars.GCP_PROJECT_ID || 'hubscape-geap' }}
           GCP_LOCATION: ${{ vars.GCP_LOCATION || 'us-central1' }}
-          GCP_STAGING_BUCKET: ${{ secrets.GCP_STAGING_BUCKET }}
+          GCP_STAGING_BUCKET: ${{ secrets.GCP_STAGING_BUCKET || 'hubscape-geap-reasoning-engines' }}
         run: |
           python deploy.py
