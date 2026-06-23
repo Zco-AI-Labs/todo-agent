@@ -106,9 +106,9 @@ class TodoAgent:
 
         import hubscape_adk
         import uuid
-        user_id = (context or {}).get("userId") or "anonymous_user"
-        org_id = (context or {}).get("orgId")
-        hub_id = (context or {}).get("hubId")
+        user_id = (context or {}).get("userId") or (context or {}).get("user_id") or "anonymous_user"
+        org_id = (context or {}).get("orgId") or (context or {}).get("org_id")
+        hub_id = (context or {}).get("hubId") or (context or {}).get("hub_id")
         
         agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
         project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
