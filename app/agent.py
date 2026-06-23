@@ -1,12 +1,19 @@
 import os
+# Force Enterprise Mode if running in GCP environment, or if no local GEMINI_API_KEY is provided
+if not os.getenv("GEMINI_API_KEY"):
+    os.environ["GOOGLE_GENAI_USE_ENTERPRISE"] = "True"
 import asyncio
 import importlib.util
 import re
-from google.antigravity import Agent, LocalAgentConfig, CapabilitiesConfig
-from google.antigravity.types import BuiltinTools, CustomSystemInstructions
-from google.antigravity.hooks import policy
+from google.adk import Agent as AdkAgent
+from google.adk.runners import Runner
+from google.genai import types
 
 def load_local_tools(scripts_dir: str) -> list:
+    import sys
+    app_dir = os.path.dirname(os.path.abspath(scripts_dir))
+    if app_dir not in sys.path:
+        sys.path.insert(0, app_dir)
     tools = []
     if not os.path.exists(scripts_dir):
         return tools
@@ -26,37 +33,31 @@ def load_local_tools(scripts_dir: str) -> list:
                 pass
     return tools
 
+# 1. Read system prompt instructions from SKILL.md and load tools at module level
+runtime_dir = os.path.dirname(os.path.abspath(__file__))
+skill_md_path = os.path.join(runtime_dir, "SKILL.md")
+system_instruction = "You are a highly efficient Task Manager agent."
+if os.path.exists(skill_md_path):
+    with open(skill_md_path, "r", encoding="utf-8") as f:
+        skill_content = f.read()
+    system_instruction = re.sub(r"^---.*?---", "", skill_content, flags=re.DOTALL).strip()
+
+scripts_dir = os.path.join(runtime_dir, "scripts")
+tools = load_local_tools(scripts_dir)
+
+root_agent = AdkAgent(
+    model='gemini-2.5-flash',
+    name='todo_agent',
+    description='Managed GEAP agent for user personal to-do lists.',
+    instruction=system_instruction,
+    tools=tools
+)
+
 class TodoAgent:
     def __init__(self):
-        # Initialize configuration with empty properties.
-        # We will load paths, tools, and system prompt dynamically at runtime.
-        self.config = LocalAgentConfig(
-            skills_paths=[],
-            workspaces=[],
-            tools=[],
-            capabilities=CapabilitiesConfig(
-                disabled_tools=[
-                    BuiltinTools.LIST_DIR,
-                    BuiltinTools.SEARCH_DIR,
-                    BuiltinTools.FIND_FILE,
-                    BuiltinTools.VIEW_FILE,
-                    BuiltinTools.CREATE_FILE,
-                    BuiltinTools.EDIT_FILE,
-                    BuiltinTools.RUN_COMMAND,
-                    BuiltinTools.GENERATE_IMAGE
-                ]
-            ),
-            policies=[policy.allow_all()],
-            vertex=True,
-            project=os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap",
-            location=os.getenv("GCP_LOCATION") or os.getenv("LOCATION") or "us-central1",
-            model="gemini-2.5-flash"
-        )
+        self.runner = None
 
     async def query(self, question: str, context: dict = None) -> str:
-        """
-        Interface method invoked by GEAP / Vertex AI Reasoning Engines.
-        """
         runtime_dir = os.path.dirname(os.path.abspath(__file__))
         
         # --- DEBUG HOOK ---
@@ -107,31 +108,68 @@ class TodoAgent:
             return f"Active Service Account: {sa_email}\nRuntime Dir: {runtime_dir}\nFiles:\n" + "\n".join(files) + "\nScripts dir contents:\n" + "\n".join(loaded) + "\nImport Errors:\n" + "\n".join(import_errors)
         # --- END DEBUG HOOK ---
 
-        scripts_dir = os.path.join(runtime_dir, "scripts")
-        skill_md_path = os.path.join(runtime_dir, "SKILL.md")
-        
-        # Load the custom system instruction from SKILL.md (overriding default developer prompt)
-        if os.path.exists(skill_md_path):
-            with open(skill_md_path, "r", encoding="utf-8") as f:
-                skill_content = f.read()
-            # Strip frontmatter
-            content_stripped = re.sub(r"^---.*?---", "", skill_content, flags=re.DOTALL).strip()
-            self.config.system_instructions = CustomSystemInstructions(text=content_stripped)
-        
-        # Load local python scripts as tools
-        self.config.tools = load_local_tools(scripts_dir)
-        self.config.skills_paths = [runtime_dir]
-        self.config.workspaces = []
-        
         import hubscape_adk
-        user_id = (context or {}).get("userId") or "anonymous_user"
-        remote_ctx = hubscape_adk.RemoteContext(user_id=user_id, project_id=self.config.project)
+        import uuid
+        user_id = (context or {}).get("userId") or (context or {}).get("user_id") or "anonymous_user"
+        org_id = (context or {}).get("orgId") or (context or {}).get("org_id")
+        hub_id = (context or {}).get("hubId") or (context or {}).get("hub_id")
+        
+        agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
+        project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
+        
+        remote_ctx = hubscape_adk.RemoteContext(
+            user_id=user_id, 
+            agent_id=agent_uuid,
+            org_id=org_id,
+            hub_id=hub_id,
+            project_id=project_id,
+            raw_context=context
+        )
+        
+        session_id = (context or {}).get("sessionId") or f"session_{user_id}_{hub_id}"
         
         with hubscape_adk.context_session(remote_ctx):
-            async with Agent(config=self.config) as agent:
-                response = await agent.chat(question)
-                await response.resolve()
-                return await response.text()
+            if not self.runner:
+                from google.adk.sessions.in_memory_session_service import InMemorySessionService
+                from google.adk.artifacts.in_memory_artifact_service import InMemoryArtifactService
+                from google.adk.memory.in_memory_memory_service import InMemoryMemoryService
+                from google.adk.auth.credential_service.in_memory_credential_service import InMemoryCredentialService
+                
+                self.runner = Runner(
+                    agent=root_agent,
+                    app_name='todo-agent',
+                    session_service=InMemorySessionService(),
+                    artifact_service=InMemoryArtifactService(),
+                    memory_service=InMemoryMemoryService(),
+                    credential_service=InMemoryCredentialService(),
+                    auto_create_session=True
+                )
+            
+            new_message = types.Content(
+                parts=[types.Part.from_text(text=question)]
+            )
+            
+            text_response = ""
+            async for event in self.runner.run_async(
+                user_id=user_id,
+                session_id=session_id,
+                new_message=new_message
+            ):
+                if event.output:
+                    text_response += event.output
+                elif event.content and event.content.parts:
+                    for part in event.content.parts:
+                        if part.text:
+                            text_response += part.text
+            
+            return text_response
 
 # Singleton instance used as the serialization target
 todo_agent_app = TodoAgent()
+
+from google.adk.apps import App
+app = App(
+    root_agent=root_agent,
+    name="app",
+)
+

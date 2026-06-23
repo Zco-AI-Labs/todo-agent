@@ -16,17 +16,22 @@ def add_task(task_name: str) -> dict:
         user_id = context.auth.get_user_id()
         logger.info(f"Adding task '{task_name}' for user {user_id}")
         
-        tasks_ref = context.db.collection('platform_users').document(user_id).collection('adk_tasks')
-        _, doc_ref = tasks_ref.add({
-            "name": task_name,
-            "status": "open",
-            "created_at": datetime.now(timezone.utc).isoformat()
-        })
+        import uuid
+        task_id = uuid.uuid4().hex
+        context.save(
+            scope="user",
+            collection_name="tasks",
+            doc_id=task_id,
+            data={
+                "name": task_name,
+                "status": "open"
+            }
+        )
         
         return {
             "status": "success",
             "message": f"Task '{task_name}' added successfully.",
-            "task_id": doc_ref.id
+            "task_id": task_id
         }
     except Exception as e:
         tb = traceback.format_exc()

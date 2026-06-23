@@ -1,5 +1,5 @@
 ---
-name: todo_agent
+name: todo-agent
 description: "An advanced assistant that manages the user's personal to-do list. Call this agent when the user wants to add, view, or complete personal tasks."
 allowedRoles: ["member", "Hub Admin"]
 ---

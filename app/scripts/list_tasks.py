@@ -11,17 +11,15 @@ def list_tasks() -> dict:
         user_id = context.auth.get_user_id()
         logger.info(f"Listing tasks for user {user_id}")
         
-        tasks_ref = context.db.collection('platform_users').document(user_id).collection('adk_tasks')
-        docs = tasks_ref.where("status", "==", "open").stream()
-        
+        all_tasks = context.list(scope="user", collection_name="tasks")
         tasks = []
-        for doc in docs:
-            data = doc.to_dict()
-            tasks.append({
-                "task_id": doc.id,
-                "name": data.get("name"),
-                "created_at": data.get("created_at")
-            })
+        for task in all_tasks:
+            if task.get("status") == "open":
+                tasks.append({
+                    "task_id": task["id"],
+                    "name": task.get("name"),
+                    "created_at": task.get("created_at")
+                })
             
         if not tasks:
             return {"status": "success", "message": "You have no open tasks!"}
