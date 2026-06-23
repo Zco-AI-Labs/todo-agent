@@ -40,7 +40,7 @@ tools = load_local_tools(scripts_dir)
 
 root_agent = AdkAgent(
     model='gemini-2.5-flash',
-    name='todo-agent',
+    name='todo_agent',
     description='Managed GEAP agent for user personal to-do lists.',
     instruction=system_instruction,
     tools=tools
