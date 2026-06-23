@@ -170,6 +170,6 @@ todo_agent_app = TodoAgent()
 from google.adk.apps import App
 app = App(
     root_agent=root_agent,
-    name="todo-agent",
+    name="app",
 )
 
