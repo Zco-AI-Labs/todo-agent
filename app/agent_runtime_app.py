@@ -84,9 +84,10 @@ class ActionInterceptingEventQueue(EventQueue):
         self.accumulated_text = ""
         self.events = []
         self.final_event = None
+        self.artifact_event = None
 
     async def enqueue_event(self, event):
-        from a2a.types import TaskStatusUpdateEvent
+        from a2a.types import TaskStatusUpdateEvent, TaskArtifactUpdateEvent
         if isinstance(event, TaskStatusUpdateEvent):
             if event.final:
                 self.final_event = event
@@ -99,6 +100,8 @@ class ActionInterceptingEventQueue(EventQueue):
                         self.accumulated_text += part.text
             
             self.events.append(event)
+        elif isinstance(event, TaskArtifactUpdateEvent):
+            self.artifact_event = event
         else:
             # E.g. Task submitted event, enqueue immediately
             await self.target_queue.enqueue_event(event)
@@ -236,7 +239,7 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
                     break
 
             if directive_payload:
-                from a2a.types import TaskStatusUpdateEvent, Message, Role, TextPart, TaskStatus, TaskState
+                from a2a.types import TaskStatusUpdateEvent, Message, Role, TextPart, TaskStatus, TaskState, TaskArtifactUpdateEvent, Artifact
                 
                 json_text = json.dumps(directive_payload)
                 new_event = TaskStatusUpdateEvent(
@@ -254,12 +257,27 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
                     final=False
                 )
                 await event_queue.enqueue_event(new_event)
+
+                new_artifact_event = TaskArtifactUpdateEvent(
+                    task_id=context.task_id,
+                    last_chunk=True,
+                    context_id=context.context_id,
+                    artifact=Artifact(
+                        artifact_id=str(uuid.uuid4()),
+                        parts=[TextPart(text=json_text)]
+                    )
+                )
+                await event_queue.enqueue_event(new_artifact_event)
             else:
                 for ev in interceptor.events:
                     await event_queue.enqueue_event(ev)
+                if interceptor.artifact_event:
+                    await event_queue.enqueue_event(interceptor.artifact_event)
         else:
             for ev in interceptor.events:
                 await event_queue.enqueue_event(ev)
+            if interceptor.artifact_event:
+                await event_queue.enqueue_event(interceptor.artifact_event)
 
         if interceptor.final_event:
             await event_queue.enqueue_event(interceptor.final_event)
