@@ -47,6 +47,34 @@ from app.app_utils.typing import Feedback
 # Load environment variables from .env file at runtime
 load_dotenv()
 
+class ActionInterceptingEventQueue(EventQueue):
+    def __init__(self, target_queue: EventQueue, remote_context):
+        super().__init__()
+        self.target_queue = target_queue
+        self.remote_context = remote_context
+        self.accumulated_text = ""
+        self.events = []
+        self.final_event = None
+
+    async def enqueue_event(self, event):
+        from a2a.types import TaskStatusUpdateEvent
+        if isinstance(event, TaskStatusUpdateEvent):
+            if event.final:
+                self.final_event = event
+                return
+            
+            # Extract text to accumulate
+            if event.status and event.status.message and event.status.message.parts:
+                for part in event.status.message.parts:
+                    if hasattr(part, "text") and part.text:
+                        self.accumulated_text += part.text
+            
+            self.events.append(event)
+        else:
+            # E.g. Task submitted event, enqueue immediately
+            await self.target_queue.enqueue_event(event)
+
+
 class AgentEngineA2aExecutor(A2aAgentExecutor):
     """Custom A2A Executor that intercepts requests to inject RemoteContext."""
     async def execute(
@@ -54,12 +82,16 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
         context: RequestContext,
         event_queue: EventQueue,
     ):
-        metadata = context.metadata or {}
+        import json
         import uuid
+        from datetime import datetime, timezone
+        
+        metadata = context.metadata or {}
         
         user_id_resolved = metadata.get("userId") or metadata.get("user_id") or "anonymous_user"
         org_id = metadata.get("orgId") or metadata.get("org_id")
         hub_id = metadata.get("hubId") or metadata.get("hub_id")
+        mode = metadata.get("mode") or "none"
         
         agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
         project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
@@ -73,9 +105,135 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
             raw_context=metadata
         )
         
-        # Enter the context session to ensure all Firestore calls in tools are authenticated
-        with hubscape_adk.context_session(remote_ctx):
-            await super().execute(context, event_queue)
+        interceptor = ActionInterceptingEventQueue(event_queue, remote_ctx)
+        
+        from app.agent import root_agent
+        base_instruction = root_agent.instruction or ""
+        
+        # Inject Active Session Context securely at the top of the prompt
+        session_context = f"""
+[ACTIVE SESSION CONTEXT]
+- User ID: {user_id_resolved}
+- Hub ID: {hub_id or 'none'}
+- Organization ID: {org_id or 'none'}
+- Interaction Mode: {mode}
+"""
+        
+        # Format and append accessible agents roster
+        accessible_agents = metadata.get("accessible_agents", [])
+        roster_str = ""
+        if accessible_agents:
+            roster_str = "\n=== AVAILABLE SUBAGENTS ROSTER ===\n" + "\n".join(
+                f"- {a.get('name')} (ID: {a.get('id')}): {a.get('description')}" for a in accessible_agents
+            ) + "\n"
+            
+        root_agent.instruction = f"{session_context}{roster_str}\n{base_instruction}"
+        
+        try:
+            # Enter the context session to ensure all Firestore calls in tools are authenticated
+            with hubscape_adk.context_session(remote_ctx):
+                await super().execute(context, interceptor)
+        finally:
+            root_agent.instruction = base_instruction
+
+        # Determine if there are actions to propagate
+        has_actions = bool(remote_ctx.actions)
+        if has_actions:
+            directive_payload = {}
+            for action in remote_ctx.actions:
+                atype = action.get("type")
+                payload = action.get("payload") or {}
+                if atype == "OPEN_AGENT_WIDGET":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "openAgentWidget",
+                        "parameters": {
+                            "widgetId": payload.get("widgetId"),
+                            "widgetConfig": payload.get("widgetConfig"),
+                            "data": payload.get("data") or {},
+                            "styling": payload.get("styling") or {},
+                            "userPreferences": payload.get("userPreferences") or {}
+                        },
+                        "message": interceptor.accumulated_text or "Displaying agent widget."
+                    }
+                    break
+                elif atype == "OPEN_ADMIN_WIDGET":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "openAdminWidget",
+                        "parameters": {
+                            "widgetType": payload.get("widgetType")
+                        },
+                        "message": interceptor.accumulated_text or "Opening admin widget."
+                    }
+                    break
+                elif atype == "SET_SUGGESTIONS":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "suggestQueries",
+                        "parameters": {
+                            "queries": action.get("queries") or []
+                        },
+                        "message": interceptor.accumulated_text or ""
+                    }
+                    break
+                elif atype == "SWITCH_HUB":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "switchHub",
+                        "parameters": {
+                            "hubId": payload.get("hubId")
+                        },
+                        "message": interceptor.accumulated_text or "Switching hub workspace."
+                    }
+                    break
+                elif atype == "OPEN_EXTERNAL_LINK":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "openExternalLink",
+                        "parameters": {
+                            "url": payload.get("url")
+                        },
+                        "message": interceptor.accumulated_text or "Opening link."
+                    }
+                    break
+                elif atype == "END_CALL":
+                    directive_payload = {
+                        "directive": "execute_host_tool",
+                        "target_tool": "endCall",
+                        "parameters": {},
+                        "message": interceptor.accumulated_text or "Call ended."
+                    }
+                    break
+
+            if directive_payload:
+                from a2a.types import TaskStatusUpdateEvent, Message, Role, TextPart, TaskStatus, TaskState
+                
+                json_text = json.dumps(directive_payload)
+                new_event = TaskStatusUpdateEvent(
+                    task_id=context.task_id,
+                    status=TaskStatus(
+                        state=TaskState.working,
+                        timestamp=datetime.now(timezone.utc).isoformat(),
+                        message=Message(
+                            message_id=str(uuid.uuid4()),
+                            role=Role.agent,
+                            parts=[TextPart(text=json_text)]
+                        )
+                    ),
+                    context_id=context.context_id,
+                    final=False
+                )
+                await event_queue.enqueue_event(new_event)
+            else:
+                for ev in interceptor.events:
+                    await event_queue.enqueue_event(ev)
+        else:
+            for ev in interceptor.events:
+                await event_queue.enqueue_event(ev)
+
+        if interceptor.final_event:
+            await event_queue.enqueue_event(interceptor.final_event)
 
 
 class AgentEngineApp(A2aAgent):
@@ -131,6 +289,12 @@ class AgentEngineApp(A2aAgent):
 
     def set_up(self) -> None:
         """Initialize the agent engine app with logging and telemetry."""
+        # Undo any pyOpenSSL monkeypatching in urllib3 to avoid connection reuse error
+        try:
+            from urllib3.contrib import pyopenssl
+            pyopenssl.extract_from_urllib3()
+        except Exception:
+            pass
         # Explicitly pop GOOGLE_GENAI_USE_ENTERPRISE and set GOOGLE_GENAI_USE_VERTEXAI to force regional Vertex AI routing
         os.environ.pop("GOOGLE_GENAI_USE_ENTERPRISE", None)
         os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "True"
