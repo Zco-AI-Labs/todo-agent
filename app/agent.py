@@ -117,7 +117,9 @@ class TodoAgent:
         hub_id = (context or {}).get("hubId") or (context or {}).get("hub_id")
         
         agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
-        project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
+        project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID")
+        if not project_id:
+            raise KeyError("Environment variable PROJECT_ID or GCP_PROJECT_ID is required but not set.")
         
         remote_ctx = hubscape_adk.RemoteContext(
             user_id=user_id, 
