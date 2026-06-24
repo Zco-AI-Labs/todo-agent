@@ -185,7 +185,7 @@ try:
     with TestClient(app) as client:
         card = client.get('/.well-known/agent-card.json').json()
 
-    engine_url = f"https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{active_engine_id}"
+    engine_url = f"https://{LOCATION}-aiplatform.googleapis.com/v1/projects/{PROJECT_ID}/locations/{LOCATION}/reasoningEngines/{active_engine_id}/a2a"
     card['url'] = engine_url
 
     # 4. Create or update the Service resource in the Agent Registry
