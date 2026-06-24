@@ -36,6 +36,10 @@ class AgentEngineApp(AdkApp):
         vertexai.init()
         setup_telemetry()
         super().set_up()
+        if "runner" in self._tmpl_attrs:
+            self._tmpl_attrs["runner"].auto_create_session = True
+        if "in_memory_runner" in self._tmpl_attrs:
+            self._tmpl_attrs["in_memory_runner"].auto_create_session = True
         # Explicitly pop GOOGLE_GENAI_USE_ENTERPRISE to force regional Vertex AI routing
         os.environ.pop("GOOGLE_GENAI_USE_ENTERPRISE", None)
         logging.basicConfig(level=logging.INFO)
