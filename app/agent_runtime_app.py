@@ -49,7 +49,7 @@ load_dotenv()
 
 class AgentEngineA2aExecutor(A2aAgentExecutor):
     """Custom A2A Executor that intercepts requests to inject RemoteContext."""
-    async def _handle_request(
+    async def execute(
         self,
         context: RequestContext,
         event_queue: EventQueue,
@@ -75,7 +75,7 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
         
         # Enter the context session to ensure all Firestore calls in tools are authenticated
         with hubscape_adk.context_session(remote_ctx):
-            await super()._handle_request(context, event_queue)
+            await super().execute(context, event_queue)
 
 
 class AgentEngineApp(A2aAgent):
