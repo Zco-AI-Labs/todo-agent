@@ -49,34 +49,110 @@ class AgentEngineApp(AdkApp):
         feedback_obj = Feedback.model_validate(feedback)
         self.logger.log_struct(feedback_obj.model_dump(), severity="INFO")
 
+    def query(self, question: str, context: Optional[dict] = None) -> str:
+        """Non-streaming query delegation to TodoAgent."""
+        import asyncio
+        import concurrent.futures
+        from app.agent import todo_agent_app
+        
+        async def run_query():
+            return await todo_agent_app.query(question, context)
+            
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                return executor.submit(lambda: asyncio.run(run_query())).result()
+        else:
+            return asyncio.run(run_query())
+
     def stream_query(self, *, message, user_id: str, session_id=None, run_config=None, **kwargs):
-        """Override to strip unsupported 'context' kwarg from Hubscape backend before delegating to Runner."""
-        kwargs.pop("context", None)
-        yield from super().stream_query(
-            message=message,
-            user_id=user_id,
-            session_id=session_id,
-            run_config=run_config,
-            **kwargs,
+        """Override to initialize RemoteContext and inject dynamic system instructions."""
+        context = kwargs.pop("context", None)
+        
+        import uuid
+        from app import hubscape_adk
+        from app.agent import root_agent
+        
+        user_id_resolved = (context or {}).get("userId") or (context or {}).get("user_id") or user_id or "anonymous_user"
+        org_id = (context or {}).get("orgId") or (context or {}).get("org_id")
+        hub_id = (context or {}).get("hubId") or (context or {}).get("hub_id")
+        
+        agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
+        project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
+        
+        remote_ctx = hubscape_adk.RemoteContext(
+            user_id=user_id_resolved,
+            agent_id=agent_uuid,
+            org_id=org_id,
+            hub_id=hub_id,
+            project_id=project_id,
+            raw_context=context
         )
+        
+        system_instruction = (context or {}).get("system_instruction")
+        if system_instruction:
+            root_agent.instruction = system_instruction
+
+        session_id_resolved = session_id or (context or {}).get("sessionId") or f"session_{user_id_resolved}_{hub_id}"
+
+        with hubscape_adk.context_session(remote_ctx):
+            yield from super().stream_query(
+                message=message,
+                user_id=user_id,
+                session_id=session_id_resolved,
+                run_config=run_config,
+                **kwargs,
+            )
 
     async def async_stream_query(self, *, message, user_id: str, session_id=None, session_events=None, run_config=None, **kwargs):
-        """Override to strip unsupported 'context' kwarg from Hubscape backend before delegating to Runner."""
-        kwargs.pop("context", None)
-        async for event in super().async_stream_query(
-            message=message,
-            user_id=user_id,
-            session_id=session_id,
-            session_events=session_events,
-            run_config=run_config,
-            **kwargs,
-        ):
-            yield event
+        """Override to initialize RemoteContext and inject dynamic system instructions."""
+        context = kwargs.pop("context", None)
+        
+        import uuid
+        from app import hubscape_adk
+        from app.agent import root_agent
+        
+        user_id_resolved = (context or {}).get("userId") or (context or {}).get("user_id") or user_id or "anonymous_user"
+        org_id = (context or {}).get("orgId") or (context or {}).get("org_id")
+        hub_id = (context or {}).get("hubId") or (context or {}).get("hub_id")
+        
+        agent_uuid = str(uuid.uuid5(uuid.NAMESPACE_URL, "https://github.com/Zco-AI-Labs/todo-agent"))
+        project_id = os.getenv("PROJECT_ID") or os.getenv("GCP_PROJECT_ID") or "hubscape-geap"
+        
+        remote_ctx = hubscape_adk.RemoteContext(
+            user_id=user_id_resolved,
+            agent_id=agent_uuid,
+            org_id=org_id,
+            hub_id=hub_id,
+            project_id=project_id,
+            raw_context=context
+        )
+        
+        system_instruction = (context or {}).get("system_instruction")
+        if system_instruction:
+            root_agent.instruction = system_instruction
+
+        session_id_resolved = session_id or (context or {}).get("sessionId") or f"session_{user_id_resolved}_{hub_id}"
+
+        with hubscape_adk.context_session(remote_ctx):
+            async for event in super().async_stream_query(
+                message=message,
+                user_id=user_id,
+                session_id=session_id_resolved,
+                session_events=session_events,
+                run_config=run_config,
+                **kwargs,
+            ):
+                yield event
 
     def register_operations(self) -> dict[str, list[str]]:
         """Registers the operations of the Agent."""
         operations = super().register_operations()
-        operations[""] = [*operations.get("", []), "register_feedback"]
+        operations[""] = [*operations.get("", []), "register_feedback", "query"]
         return operations
 
     def clone(self) -> "AgentEngineApp":
