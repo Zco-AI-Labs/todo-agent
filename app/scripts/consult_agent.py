@@ -58,6 +58,8 @@ async def consultAgent(agentId: str, query: str) -> str:
                 if len(parts) > 3:
                     location = parts[3]
             a2a_url = f"https://{location}-aiplatform.googleapis.com/v1/{resource_name}"
+            if target_agent.get("type") == "A2A":
+                a2a_url = f"{a2a_url}/a2a"
             
         if not a2a_url:
             return f"Error: Agent '{agentId}' does not have a valid A2A URL or remote resource name."
@@ -104,13 +106,20 @@ async def consultAgent(agentId: str, query: str) -> str:
                 "org_id": ctx.auth.org_id,
                 "hubId": ctx.auth.hub_id,
                 "hub_id": ctx.auth.hub_id,
+                "mode": raw_ctx.get("mode"),
                 "accessible_agents": accessible_agents,
                 "depth": current_depth + 1
             }
 
+        # Normalize the agent ID to a valid Python identifier
+        import re
+        valid_name = re.sub(r'[^a-zA-Z0-9_]', '_', agentId)
+        if not valid_name[0].isalpha() and valid_name[0] != '_':
+            valid_name = '_' + valid_name
+
         # Instantiate the Remote A2A Agent using the ADK Client
         subagent = RemoteA2aAgent(
-            name=agentId,
+            name=valid_name,
             agent_card=a2a_url,
             httpx_client=httpx_client,
             a2a_request_meta_provider=request_meta_provider
@@ -128,10 +137,12 @@ async def consultAgent(agentId: str, query: str) -> str:
             state={},
             events=[adk_event]
         )
+        from google.adk.sessions.in_memory_session_service import InMemorySessionService
         parent_ctx = InvocationContext(
             invocation_id="dummy_invocation_id",
-            branch=0,
-            session=dummy_session
+            branch="0",
+            session=dummy_session,
+            session_service=InMemorySessionService()
         )
         
         subagent_output = ""
