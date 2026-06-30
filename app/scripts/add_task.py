@@ -5,6 +5,7 @@ import hubscape_adk
 
 logger = logging.getLogger(__name__)
 
+@hubscape_adk.require_tool_privilege
 def add_task(task_name: str) -> dict:
     """Adds a new task to the user's to-do list.
 

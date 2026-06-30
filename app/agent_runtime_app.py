@@ -360,10 +360,29 @@ class AgentEngineApp(A2aAgent):
         feedback_obj = Feedback.model_validate(feedback)
         self.logger.log_struct(feedback_obj.model_dump(), severity="INFO")
 
+    def get_agent_card(self) -> dict:
+        """
+        [NEW] Returns the metadata card of the agent and all its tools.
+        Used by the platform Host core during GitOps deploys or sync sweeps.
+        """
+        card_dict = {
+            "name": self.agent_card.name if hasattr(self.agent_card, 'name') else "todo-agent",
+            "description": self.agent_card.description if hasattr(self.agent_card, 'description') else "Manages tasks and lists.",
+            "version": self.agent_card.agent_version if hasattr(self.agent_card, 'agent_version') else "0.1.0",
+            "tools": []
+        }
+        from app.agent import app as adk_app
+        for tool_name, tool_obj in adk_app.tools.items():
+            card_dict["tools"].append({
+                "name": tool_name,
+                "description": tool_obj.__doc__ or ""
+            })
+        return card_dict
+
     def register_operations(self) -> dict[str, list[str]]:
         """Registers the operations of the Agent."""
         operations = super().register_operations()
-        operations[""] = [*operations.get("", []), "register_feedback"]
+        operations[""] = [*operations.get("", []), "register_feedback", "get_agent_card"]
         return operations
 
     def clone(self) -> "AgentEngineApp":

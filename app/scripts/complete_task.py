@@ -5,6 +5,7 @@ import hubscape_adk
 
 logger = logging.getLogger(__name__)
 
+@hubscape_adk.require_tool_privilege
 def complete_task(task_id: str) -> dict:
     """Marks a specific task as complete.
 
