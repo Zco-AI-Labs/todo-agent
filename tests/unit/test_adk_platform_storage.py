@@ -13,7 +13,7 @@ def test_adk_platform_scope_db_path():
     )
     
     path = ctx.get_agent_db_path(scope="platform", collection_name="submissions", doc_id="doc456")
-    assert path == "agents/todo-agent/agent_data/submissions/doc456"
+    assert path == "agents/todo-agent/agent_data/platform/submissions/doc456"
 
 def test_adk_storage_paths():
     ctx = hubscape_adk.RemoteContext(
@@ -131,9 +131,9 @@ def test_platform_reminders():
         assert res["status"] == "success"
         assert "reminder_id" in res
         
-        # Verify db.document was called with "agents/todo-agent/agent_data/reminders" path
+        # Verify db.document was called with "agents/todo-agent/agent_data/platform/reminders" path
         called_args = mock_db.document.call_args[0][0]
-        assert "agents/todo-agent/agent_data/reminders" in called_args
+        assert "agents/todo-agent/agent_data/platform/reminders" in called_args
         
         # Mock list reminders
         mock_list = MagicMock(return_value=[
