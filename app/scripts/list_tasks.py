@@ -19,7 +19,8 @@ def list_tasks() -> dict:
                 tasks.append({
                     "task_id": task["id"],
                     "name": task.get("name"),
-                    "created_at": task.get("created_at")
+                    "created_at": task.get("created_at"),
+                    "image_url": task.get("image_url")
                 })
             
         if not tasks:
