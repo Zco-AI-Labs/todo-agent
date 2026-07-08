@@ -1,6 +1,6 @@
 ---
 name: todo-agent
-description: "An advanced assistant that manages the user's personal to-do list. Call this agent when the user wants to add, view, or complete personal tasks."
+description: "An advanced assistant that manages the user's personal to-do list and platform-wide reminders. Call this agent when the user wants to add, view, or complete personal tasks or platform reminders."
 allowedRoles: ["member", "Hub Admin"]
 ---
 

@@ -27,17 +27,17 @@ def generate_task_icon(task_name: str) -> bytes:
         credentials=credentials
     )
     
-    response = client.models.generate_images(
-        model='imagen-3.0-generate-002',
-        prompt=f"A simple minimalist 2D flat icon representing: {task_name}",
-        config=types.GenerateImagesConfig(
-            number_of_images=1,
-            output_mime_type="image/jpeg",
-            aspect_ratio="1:1"
+    response = client.models.generate_content(
+        model='gemini-2.5-flash-image',
+        contents=f"Generate a simple minimalist 2D flat icon representing: {task_name}",
+        config=types.GenerateContentConfig(
+            response_modalities=["IMAGE"]
         )
     )
-    if response.generated_images:
-        return response.generated_images[0].image.image_bytes
+    if response.candidates and response.candidates[0].content.parts:
+        for part in response.candidates[0].content.parts:
+            if part.inline_data:
+                return part.inline_data.data
     raise ValueError("No images generated.")
 
 @hubscape_adk.require_tool_privilege
@@ -61,9 +61,9 @@ def add_task(task_name: str) -> dict:
             # 2. Save file to storage
             storage_res = context.save_file(
                 scope="user",
-                filename=f"{task_id}.jpg",
+                filename=f"{task_id}.png",
                 content=image_bytes,
-                content_type="image/jpeg"
+                content_type="image/png"
             )
             image_url = storage_res.get("download_url")
         except Exception as img_err:
