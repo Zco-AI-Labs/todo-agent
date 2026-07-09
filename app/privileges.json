@@ -1,0 +1,15 @@
+{
+  "privileges": {
+    "1": {
+      "name": "Task Manager",
+      "description": "Allows full capability of managing tasks and reminders",
+      "tools": [
+        "add_task",
+        "complete_task",
+        "list_tasks",
+        "add_platform_reminder",
+        "list_platform_reminders"
+      ]
+    }
+  }
+}

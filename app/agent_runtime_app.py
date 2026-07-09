@@ -76,6 +76,38 @@ from app.app_utils.typing import Feedback
 # Load environment variables from .env file at runtime
 load_dotenv()
 
+import os
+def _load_privileges() -> dict:
+    import json
+    privileges_data = {}
+    try:
+        app_dir = os.path.dirname(os.path.abspath(__file__))
+        privileges_path = os.path.join(app_dir, "privileges.json")
+        if os.path.exists(privileges_path):
+            with open(privileges_path, "r") as pf:
+                privileges_data = json.load(pf)
+    except Exception:
+        pass
+    return privileges_data
+
+def _load_privileges_without_tools() -> dict:
+    privileges_data = _load_privileges()
+    if not privileges_data:
+        return {}
+    filtered_data = {}
+    if "privileges" in privileges_data:
+        filtered_data["privileges"] = {}
+        for role_id, role_info in privileges_data["privileges"].items():
+            if isinstance(role_info, dict):
+                filtered_data["privileges"][role_id] = {
+                    k: v for k, v in role_info.items() if k != "tools"
+                }
+            else:
+                filtered_data["privileges"][role_id] = role_info
+    else:
+        filtered_data = privileges_data
+    return filtered_data
+
 class ActionInterceptingEventQueue(EventQueue):
     def __init__(self, target_queue: EventQueue, remote_context):
         super().__init__()
@@ -316,21 +348,34 @@ class AgentEngineApp(A2aAgent):
 
     @staticmethod
     async def build_agent_card(app: App) -> AgentCard:
+        agent_name = app.root_agent.name.replace('_', '-') if app.root_agent and hasattr(app.root_agent, "name") else "custom-agent"
+        extensions = [
+            AgentExtension(
+                uri="https://google.github.io/adk-docs/a2a/a2a-extension/",
+                description="Ability to use the new agent executor implementation",
+            ),
+        ]
+        privileges_data = _load_privileges_without_tools()
+        if privileges_data:
+            extensions.append(
+                AgentExtension(
+                    uri="https://hubscape.io/extensions/privileges",
+                    description="Workspace role-based privileges matrix",
+                    params=privileges_data
+                )
+            )
+
         agent_card_builder = AgentCardBuilder(
             agent=app.root_agent,
             capabilities=AgentCapabilities(
                 streaming=False,
-                extensions=[
-                    AgentExtension(
-                        uri="https://google.github.io/adk-docs/a2a/a2a-extension/",
-                        description="Ability to use the new agent executor implementation",
-                    ),
-                ],
+                extensions=extensions,
             ),
             rpc_url="http://localhost:9999/",
             agent_version=os.getenv("AGENT_VERSION", "0.1.0"),
         )
         agent_card = await agent_card_builder.build()
+        agent_card.name = agent_name
         agent_card.preferred_transport = TransportProtocol.http_json  # Http Only.
         agent_card.supports_authenticated_extended_card = True
         return agent_card
@@ -367,10 +412,29 @@ class AgentEngineApp(A2aAgent):
         """
         from app.agent import app as adk_app
         root_agent = getattr(adk_app, "root_agent", None)
+        
+        extensions = [
+            {
+                "uri": "https://google.github.io/adk-docs/a2a/a2a-extension/",
+                "description": "Ability to use the new agent executor implementation"
+            }
+        ]
+        privileges_data = _load_privileges_without_tools()
+        if privileges_data:
+            extensions.append({
+                "uri": "https://hubscape.io/extensions/privileges",
+                "description": "Workspace role-based privileges matrix",
+                "params": privileges_data
+            })
+            
         card_dict = {
             "name": getattr(root_agent, "name", "todo-agent"),
             "description": getattr(root_agent, "description", "Manages tasks and lists."),
             "version": "0.1.0",
+            "capabilities": {
+                "streaming": False,
+                "extensions": extensions
+            },
             "tools": []
         }
         tools_list = root_agent.tools if root_agent and hasattr(root_agent, "tools") else []

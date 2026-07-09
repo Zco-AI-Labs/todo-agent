@@ -4,6 +4,7 @@ import jwt
 import json
 import base64
 import hashlib
+from unittest.mock import MagicMock, patch, mock_open
 from cryptography.fernet import Fernet
 import hubscape_adk
 
@@ -19,10 +20,10 @@ async def test_require_tool_privilege_decorator_success():
     master_secret = "test_hmac_secret_key"
     os.environ["HUBSCAPE_HMAC_SECRET"] = master_secret
     
-    # Encrypt capabilities
+    # Encrypt capabilities (contains privilege ID "1" instead of raw tool name)
     derived_key = derive_test_fernet_key("todo-agent", master_secret)
     fernet = Fernet(derived_key.encode())
-    encrypted = fernet.encrypt(json.dumps(["my_secret_tool"]).encode()).decode()
+    encrypted = fernet.encrypt(json.dumps(["1"]).encode()).decode()
     
     import time
     now = int(time.time())
@@ -50,10 +51,22 @@ async def test_require_tool_privilege_decorator_success():
     async def my_secret_tool():
         return "success"
         
-    # Execute inside context_session
-    with hubscape_adk.context_session(context):
-        result = await my_secret_tool()
-        assert result == "success"
+    mock_privileges = {
+        "privileges": {
+            "1": {
+                "name": "Secret Manager",
+                "description": "Allows my_secret_tool",
+                "tools": ["my_secret_tool"]
+            }
+        }
+    }
+    
+    # Execute inside context_session with mock privileges.json
+    with patch("builtins.open", mock_open(read_data=json.dumps(mock_privileges))):
+        with patch("os.path.exists", return_value=True):
+            with hubscape_adk.context_session(context):
+                result = await my_secret_tool()
+                assert result == "success"
 
 @pytest.mark.asyncio
 async def test_require_tool_privilege_decorator_blocked():
@@ -92,8 +105,20 @@ async def test_require_tool_privilege_decorator_blocked():
     async def my_blocked_tool():
         return "should not reach here"
         
+    mock_privileges = {
+        "privileges": {
+            "1": {
+                "name": "Secret Manager",
+                "description": "Allows my_secret_tool",
+                "tools": ["my_secret_tool"]
+            }
+        }
+    }
+    
     # Execute inside context_session and verify it raises PermissionError
-    with hubscape_adk.context_session(context):
-        with pytest.raises(PermissionError) as exc_info:
-            await my_blocked_tool()
-        assert "is not allowed for this agent" in str(exc_info.value)
+    with patch("builtins.open", mock_open(read_data=json.dumps(mock_privileges))):
+        with patch("os.path.exists", return_value=True):
+            with hubscape_adk.context_session(context):
+                with pytest.raises(PermissionError) as exc_info:
+                    await my_blocked_tool()
+                assert "is not allowed for this agent" in str(exc_info.value)
