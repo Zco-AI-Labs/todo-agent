@@ -111,5 +111,3 @@ packages = ["app","frontend"]
 
 [tool.uv]
 override-dependencies = ["google-cloud-aiplatform==1.149.0"]
-
-

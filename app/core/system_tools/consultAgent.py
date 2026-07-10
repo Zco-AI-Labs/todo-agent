@@ -3,7 +3,7 @@ import json
 import httpx
 import google.auth
 import google.auth.transport.requests
-import hubscape_adk
+import app.core.hubscape_adk
 from google.adk.agents.remote_a2a_agent import RemoteA2aAgent
 from google.adk.events.event import Event as AdkEvent
 from google.genai import types as genai_types
@@ -12,7 +12,7 @@ from google.adk.agents.invocation_context import InvocationContext
 
 logger = logging.getLogger(__name__)
 
-@hubscape_adk.require_tool_privilege
+@app.core.hubscape_adk.require_tool_privilege
 async def consultAgent(agentId: str, query: str) -> str:
     """
     Consults a specialized subagent (e.g. todo_agent, knowledge_agent, admin_ui_agent).
@@ -22,7 +22,7 @@ async def consultAgent(agentId: str, query: str) -> str:
         query: The prompt or instruction for the subagent.
     """
     try:
-        ctx = hubscape_adk.get_context()
+        ctx = app.core.hubscape_adk.get_context()
         raw_ctx = ctx.raw_context
         
         # Prevent infinite agent-to-agent delegation loops (max depth = 3)

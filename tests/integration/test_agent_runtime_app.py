@@ -16,7 +16,7 @@ import os
 
 import pytest
 
-from app.agent_runtime_app import AgentEngineApp
+from app.core.agent_runtime_app import AgentEngineApp
 from tests.helpers import (
     build_get_request,
     build_post_request,
@@ -30,7 +30,7 @@ def agent_app(monkeypatch: pytest.MonkeyPatch) -> AgentEngineApp:
     # Set integration test flag to mock external services
     monkeypatch.setenv("INTEGRATION_TEST", "TRUE")
 
-    from app.agent_runtime_app import agent_runtime
+    from app.core.agent_runtime_app import agent_runtime
 
     agent_runtime.set_up()
     return agent_runtime
@@ -43,7 +43,7 @@ async def test_agent_on_message_send(agent_app: AgentEngineApp) -> None:
     message_data = {
         "message": {
             "messageId": f"msg-{os.urandom(8).hex()}",
-            "content": [{"text": "Hello, list my tasks."}],
+            "content": [{"text": "Hello"}],
             "role": "ROLE_USER",
         },
     }

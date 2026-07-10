@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any
 from starlette.requests import Request
 
 if TYPE_CHECKING:
-    from app.agent_runtime_app import AgentEngineApp
+    from app.core.agent_runtime_app import AgentEngineApp
 
 # Test constants
 POLL_MAX_ATTEMPTS = 30

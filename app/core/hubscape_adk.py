@@ -243,11 +243,22 @@ class RemoteContext:
         try:
             import os
             import json
-            runtime_dir = os.path.dirname(os.path.abspath(__file__))
+            core_dir = os.path.dirname(os.path.abspath(__file__))
+            app_dir = os.path.dirname(core_dir)
             filename = widget_template_id if widget_template_id.endswith(".json") else f"{widget_template_id}.json"
-            template_path = os.path.join(runtime_dir, "widgets", filename)
+            
+            # Check app/ui/widgets first (ADK standard)
+            template_path = os.path.join(app_dir, "ui", "widgets", filename)
             if not os.path.exists(template_path):
-                raise FileNotFoundError(f"Widget template {filename} not found at: {template_path}")
+                # Fallback to app/widgets (GEAP standard)
+                fallback_path = os.path.join(app_dir, "widgets", filename)
+                if os.path.exists(fallback_path):
+                    template_path = fallback_path
+                else:
+                    raise FileNotFoundError(
+                        f"Widget template {filename} not found. "
+                        f"Searched: {template_path} and {fallback_path}"
+                    )
             
             with open(template_path, "r", encoding="utf-8") as f:
                 widget_config = json.load(f)
@@ -385,9 +396,9 @@ def require_tool_privilege(func):
                 allowed_privilege_ids = json.loads(decrypted_bytes.decode())
             except Exception as decrypt_err:
                 raise PermissionError(f"Security Block: Failed to decrypt capabilities: {decrypt_err}")
-
+                
             # Load local privileges mapping from privileges.json
-            privileges_path = os.path.join(os.path.dirname(__file__), "privileges.json")
+            privileges_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "privileges.json")
             if not os.path.exists(privileges_path):
                 # Try current working directory as fallback
                 privileges_path = "privileges.json"

@@ -1,6 +1,6 @@
 import pytest
 from unittest.mock import MagicMock, patch
-import hubscape_adk
+from app.core import hubscape_adk
 from app.scripts.add_task import add_task
 from app.scripts.list_tasks import list_tasks
 from app.scripts.add_platform_reminder import add_platform_reminder

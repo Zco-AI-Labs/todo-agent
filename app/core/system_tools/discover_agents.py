@@ -1,9 +1,9 @@
 import logging
-import hubscape_adk
+import app.core.hubscape_adk
 
 logger = logging.getLogger(__name__)
 
-@hubscape_adk.require_tool_privilege
+@app.core.hubscape_adk.require_tool_privilege
 def discover_agents(query: str = None) -> list:
     """
     Search and discover registered A2A subagents whitelisted for the active user session.
@@ -12,7 +12,7 @@ def discover_agents(query: str = None) -> list:
         query: Optional search keyword to filter agents by name or description.
     """
     try:
-        ctx = hubscape_adk.get_context()
+        ctx = app.core.hubscape_adk.get_context()
         raw_ctx = ctx.raw_context
         accessible_agents = raw_ctx.get("accessible_agents", [])
         

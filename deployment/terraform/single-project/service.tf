@@ -61,7 +61,7 @@ resource "google_vertex_ai_reasoning_engine" "app" {
       }
 
       python_spec {
-        entrypoint_module  = "app.agent_runtime_app"
+        entrypoint_module  = "app.core.agent_runtime_app"
         entrypoint_object  = "agent_runtime"
         requirements_file  = "app/app_utils/.requirements.txt"
         version            = "3.12"

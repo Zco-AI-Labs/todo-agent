@@ -6,7 +6,7 @@ import base64
 import hashlib
 from unittest.mock import MagicMock, patch, mock_open
 from cryptography.fernet import Fernet
-import hubscape_adk
+from app.core import hubscape_adk
 
 def derive_test_fernet_key(agent_id: str, master_secret: str) -> str:
     hasher = hashlib.sha256()
