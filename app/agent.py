@@ -31,7 +31,7 @@ from app.app_utils.vertex_gemini import get_model
 root_agent = AdkAgent(
     model=get_model("gemini-2.5-flash"),
     name='todo_agent',
-    description='Managed GEAP agent for user personal to-do lists and platform reminders.',
+    description='Manages user personal to-do lists and platform-wide reminders.',
     instruction=system_instruction,
     tools=tools
 )
