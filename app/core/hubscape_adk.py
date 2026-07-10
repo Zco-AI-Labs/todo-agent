@@ -210,7 +210,7 @@ class RemoteContext:
 
         import urllib.parse
         encoded_path = urllib.parse.quote(storage_path, safe='')
-        download_url = f"https://firebasestorage.googleapis.com/v0/b/{bucket.name}/o/{encoded_path}?alt=media"
+        download_url = f"/api/media/file?path={encoded_path}"
 
         return {
             "storage_path": storage_path,
