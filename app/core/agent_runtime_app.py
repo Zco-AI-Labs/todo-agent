@@ -225,7 +225,7 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
                     from opentelemetry.sdk._logs import LogRecordProcessor
 
                     class BillingContextLogRecordProcessor(LogRecordProcessor):
-                        def emit(self, log_record, context=None):
+                        def on_emit(self, log_record, context=None):
                             try:
                                 span = trace.get_current_span()
                                 if span and span.get_span_context().is_valid:
@@ -245,6 +245,12 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
                                                     log_record.attributes[key] = val
                             except Exception:
                                 pass
+
+                        def force_flush(self, timeout_millis: int = 30000) -> bool:
+                            return True
+
+                        def shutdown(self) -> None:
+                            pass
 
                     provider.add_log_record_processor(BillingContextLogRecordProcessor())
                     import logging
