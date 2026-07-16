@@ -194,6 +194,19 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
             
         root_agent.instruction = f"{session_context}{roster_str}\n{base_instruction}"
         
+        # --- OPENTELEMETRY CONTEXT ENRICHMENT ---
+        try:
+            from opentelemetry import trace
+            current_span = trace.get_current_span()
+            if current_span:
+                session_id_resolved = metadata.get("sessionId") or metadata.get("session_id") or f"session_{user_id_resolved}_{hub_id}"
+                current_span.set_attribute("org_id", org_id or "unknown")
+                current_span.set_attribute("hub_id", hub_id or "unknown")
+                current_span.set_attribute("user_id", user_id_resolved or "unknown")
+                current_span.set_attribute("gen_ai.conversation_id", session_id_resolved)
+        except Exception as otel_err:
+            print(f"⚠️ Failed to set OpenTelemetry span attributes in executor: {otel_err}")
+
         try:
             # Enter the context session to ensure all Firestore calls in tools are authenticated
             with hubscape_adk.context_session(remote_ctx):
