@@ -2,6 +2,7 @@ import os
 import uuid
 import importlib.util
 import urllib.request
+import time
 from google.genai import types
 from google.adk.runners import Runner
 from app.core import hubscape_adk
@@ -13,6 +14,7 @@ class GEAPAgentWrapper:
         self.runner = None
 
     async def query(self, question: str, context: dict = None) -> str:
+        start_time = time.time()
         core_dir = os.path.dirname(os.path.abspath(__file__))
         runtime_dir = os.path.abspath(os.path.join(core_dir, ".."))
         
@@ -91,6 +93,8 @@ class GEAPAgentWrapper:
                 current_span.set_attribute("hub_id", hub_id or "unknown")
                 current_span.set_attribute("user_id", user_id or "unknown")
                 current_span.set_attribute("gen_ai.conversation_id", session_id)
+                current_span.set_attribute("gen_ai.request.model", self.agent.model.model_name)
+                current_span.set_attribute("provider", "vertex")
         except Exception as otel_err:
             print(f"⚠️ Failed to set OpenTelemetry span attributes: {otel_err}")
         # ----------------------------------------------------
@@ -129,4 +133,14 @@ class GEAPAgentWrapper:
                         if part.text:
                             text_response += part.text
             
+            # Record final execution latency on active span
+            try:
+                from opentelemetry import trace
+                current_span = trace.get_current_span()
+                if current_span:
+                    latency_ms = (time.time() - start_time) * 1000.0
+                    current_span.set_attribute("latency_ms", float(latency_ms))
+            except Exception as otel_err:
+                pass
+                
             return text_response
