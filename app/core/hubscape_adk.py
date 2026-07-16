@@ -1,8 +1,16 @@
 import contextvars
 import contextlib
 import datetime
+import logging
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
 from typing import Generator, Optional
 from google.cloud import firestore
+
+logger = logging.getLogger(__name__)
 
 _current_context = contextvars.ContextVar("hubscape_context")
 _global_active_context = None
@@ -299,6 +307,77 @@ class RemoteContext:
         }
         self.actions.append(action_payload)
         return {"status": "success", "message": "Custom UI layout queued."}
+
+    def send_otp(self, phone_number: str) -> dict:
+        """
+        Sends an SMS OTP code to the target phone number via the Hubscape central backend.
+        Supports local mock bypass for non-cloud development environments.
+        """
+        import httpx
+        
+        is_cloud = "K_SERVICE" in os.environ or "AIP_PREDICT_PORT" in os.environ
+        backend_url = self.raw_context.get("backend_url") or os.environ.get("HUBSCAPE_BACKEND_URL")
+        
+        if not is_cloud and not backend_url:
+            logger.warning(
+                f"⚠️ Local Dev Bypass: Simulating OTP SMS send to {phone_number}."
+            )
+            return {
+                "success": True, 
+                "status": "simulated", 
+                "message": "OTP SMS send simulated for local testing. Use code '123456' to verify."
+            }
+            
+        url = f"{str(backend_url or 'https://hubscape-backend-w3xi4ozhca-uc.a.run.app').rstrip('/')}/api/otp/send"
+        headers = {}
+        cap_token = self.raw_context.get("capability_token")
+        if cap_token:
+            headers["Authorization"] = f"Bearer {cap_token}"
+            
+        payload = {
+            "phone_number": phone_number,
+            "agent_id": self.agent_id
+        }
+        
+        resp = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+        if resp.status_code != 200:
+            raise RuntimeError(f"OTP send request failed: {resp.text}")
+        return resp.json()
+
+    def verify_otp(self, phone_number: str, code: str) -> dict:
+        """
+        Verifies the SMS OTP code for the target phone number via the Hubscape central backend.
+        Supports local mock bypass (code '123456' is always accepted) for non-cloud environments.
+        """
+        import httpx
+        
+        is_cloud = "K_SERVICE" in os.environ or "AIP_PREDICT_PORT" in os.environ
+        backend_url = self.raw_context.get("backend_url") or os.environ.get("HUBSCAPE_BACKEND_URL")
+        
+        if not is_cloud and not backend_url:
+            logger.warning(
+                f"⚠️ Local Dev Bypass: Verifying simulated OTP for {phone_number}."
+            )
+            if code == "123456":
+                return {"success": True, "status": "verified", "message": "Simulated OTP verified successfully."}
+            return {"success": False, "status": "invalid", "message": "Simulated OTP verification failed."}
+            
+        url = f"{str(backend_url or 'https://hubscape-backend-w3xi4ozhca-uc.a.run.app').rstrip('/')}/api/otp/verify"
+        headers = {}
+        cap_token = self.raw_context.get("capability_token")
+        if cap_token:
+            headers["Authorization"] = f"Bearer {cap_token}"
+            
+        payload = {
+            "phone_number": phone_number,
+            "code": code,
+            "agent_id": self.agent_id
+        }
+        
+        resp = httpx.post(url, json=payload, headers=headers, timeout=10.0)
+        if resp.status_code != 200:
+            raise RuntimeError(f"OTP verification request failed: {resp.text}")
+        return resp.json()
 
 def get_context() -> RemoteContext:
     try:

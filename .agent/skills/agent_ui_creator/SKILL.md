@@ -146,4 +146,11 @@ Below is a complete, working reference widget template (`app/ui/widgets/contact_
 When referencing dynamic data inside widget templates (e.g., text fields, image URLs, button action URLs):
 * **Use Flat Keys**: The React frontend (`DynamicWidget.tsx`) automatically unwraps/flattens dynamic payload namespaces (`data`, `response`, `result`, `widget_data`, etc.). Therefore, reference keys directly (e.g., use `{{image_url}}` instead of `{{data.image_url}}`).
 * **No Dot Notation**: The frontend's template interpolator matches variables using the regex `/\{\{\s*(\w+)\s*\}\}/g`. Because a dot (`.`) is not a word character (`\w`), the regex will fail to match placeholders containing dots, causing them to render literally in the DOM. Never use dots in template variable names.
+
+---
+
+## 🧱 Lego Component Schema Rules
+1. **Catalog Enforcement:** Root elements MUST have `"type": "container"` with nested elements in `"children"`.
+2. **Layout Enforcement:** Never invent custom layouts or schemas (like `"layout": "list_tiles"` or `"layout": "card_grid"`). Render grids or lists using the standard `list`, `table`, or nested `container` components.
+3. **No External Redirection Buttons:** Buttons trigger backend form actions (POST). Do not assign full external URLs to `actionUrl`. Instead, load a local static helper page (e.g., `/api/agents/{{agent_id}}/static/redirect.html`) inside an `iframe` component that uses a standard anchor link with `target="_blank"`.
 ```

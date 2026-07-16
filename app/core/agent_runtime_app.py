@@ -227,7 +227,8 @@ class AgentEngineA2aExecutor(A2aAgentExecutor):
                         "directive": "execute_host_tool",
                         "target_tool": "openAdminWidget",
                         "parameters": {
-                            "widgetType": payload.get("widgetType")
+                            "widgetType": payload.get("widgetType"),
+                            "confirmation_obtained": payload.get("confirmation_obtained", True)
                         },
                         "message": interceptor.accumulated_text or "Opening admin widget."
                     }
