@@ -170,7 +170,7 @@ from app.app_utils.vertex_gemini import get_model
 root_agent = AdkAgent(
     model=get_model("gemini-2.5-flash"),
     name='my_special_agent',
-    description='Managed GEAP agent.',
+    description='[LLM-Optimized Description: Describe clearly what this agent does (e.g. "Manages tasks and reminders.") so the host orchestrator can discover it. Avoid generic prefixes like "Managed GEAP agent."]',
     instruction=system_instruction,
     tools=tools
 )

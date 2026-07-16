@@ -61,6 +61,9 @@ We support two distinct agent archetypes under GEAP:
 | **Tool loading** | Supports camelCase fallback in `load_local_tools` for legacy tools. | Strict snake_case tool mapping only. |
 | **Requirements** | No `SKILL.md` is required. | `SKILL.md` is strictly REQUIRED. |
 
+### LLM-Optimized Agent Descriptions
+To ensure subagents are discovered and routed correctly by the Host Orchestrator's LLM, developers **MUST** provide direct, clean, and functionally descriptive strings for `description` in `agent.py`. Avoid generic prefixes (such as `"Managed GEAP agent for..."`). Instead, describe direct actions and data sources (e.g. `"Searches the Hubscape internal Shared RAG corpus to answer user questions using scraped websites, files, and YouTube video transcripts."`).
+
 ### camelCase Tool Loading Fallback
 If any script tool exports a camelCase function name (e.g., `consult_agent.py` → `consultAgent`), add a camelCase fallback to `load_local_tools` in your agent. See `host-agent/agent.py` lines 24-28 for the pattern. For subagents, stick to snake_case matching.
 
@@ -168,7 +171,7 @@ tools = load_local_tools(scripts_dir)
 root_agent = AdkAgent(
     model='gemini-2.5-flash',
     name='my_special_agent',
-    description='Managed GEAP agent.',
+    description='[LLM-Optimized Description: Describe clearly what this agent does (e.g. "Manages tasks and reminders.") so the host orchestrator can discover it. Avoid generic prefixes like "Managed GEAP agent."]',
     instruction=system_instruction,
     tools=tools
 )

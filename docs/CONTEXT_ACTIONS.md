@@ -96,8 +96,8 @@ File-based context operations interface with Google Cloud Storage / Firebase Sto
   * **Path Resolution:** Resolves the destination path in GCS using [get_agent_storage_path()](../app/core/hubscape_adk.py#L171).
   * **Client Configuration:** Lazily fetches GCS credentials/client using [_storage_client](../app/core/hubscape_adk.py#L135) and targets the storage bucket via [_storage_bucket](../app/core/hubscape_adk.py#L160).
   * **Upload Execution:** Uploads the raw bytes via `.upload_from_string()` with the specified `content_type`.
-  * **URL Generation:** Encodes the file path and generates a public-facing Firebase Storage download URL:
-    `https://firebasestorage.googleapis.com/v0/b/{bucket_name}/o/{encoded_path}?alt=media`
+  * **URL Generation:** Encodes the file path and generates a platform proxy download URL:
+    `/api/media/file?path={encoded_path}`
   * **Return Value:** Returns a dictionary containing `"storage_path"` (the relative GCS path) and `"download_url"` (the direct media link).
 
 
