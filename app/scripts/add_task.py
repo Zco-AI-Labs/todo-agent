@@ -89,10 +89,8 @@ def add_task(task_name: str) -> dict:
             "image_url": image_url
         }
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Error adding task: {e}\n{tb}")
+        logger.exception("Error adding task")
         return {
             "status": "error",
-            "message": f"Failed to add task: {str(e)}",
-            "traceback": tb
+            "message": f"Failed to add task: {str(e)}"
         }

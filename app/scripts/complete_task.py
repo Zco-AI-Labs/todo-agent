@@ -37,10 +37,8 @@ def complete_task(task_id: str) -> dict:
             "message": f"Task '{task.get('name')}' marked as complete."
         }
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Error completing task: {e}\n{tb}")
+        logger.exception("Error completing task")
         return {
             "status": "error",
-            "message": f"Failed to complete task: {str(e)}",
-            "traceback": tb
+            "message": f"Failed to complete task: {str(e)}"
         }

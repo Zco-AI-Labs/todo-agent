@@ -1,5 +1,5 @@
 [project]
-name = "custom-agent"
+name = "todo-agent"
 version = "0.1.0"
 description = ""
 authors = [

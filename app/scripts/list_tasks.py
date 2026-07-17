@@ -31,10 +31,8 @@ def list_tasks() -> dict:
             "tasks": tasks
         }
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Error listing tasks: {e}\n{tb}")
+        logger.exception("Error listing tasks")
         return {
             "status": "error",
-            "message": f"Failed to list tasks: {str(e)}",
-            "traceback": tb
+            "message": f"Failed to list tasks: {str(e)}"
         }

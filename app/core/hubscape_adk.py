@@ -328,7 +328,9 @@ class RemoteContext:
                 "message": "OTP SMS send simulated for local testing. Use code '123456' to verify."
             }
             
-        url = f"{str(backend_url or 'https://hubscape-backend-w3xi4ozhca-uc.a.run.app').rstrip('/')}/api/otp/send"
+        if not backend_url:
+            raise RuntimeError("CRITICAL CONFIGURATION ERROR: HUBSCAPE_BACKEND_URL environment variable is missing in cloud environment!")
+        url = f"{str(backend_url).rstrip('/')}/api/otp/send"
         headers = {}
         cap_token = self.raw_context.get("capability_token")
         if cap_token:
@@ -362,7 +364,9 @@ class RemoteContext:
                 return {"success": True, "status": "verified", "message": "Simulated OTP verified successfully."}
             return {"success": False, "status": "invalid", "message": "Simulated OTP verification failed."}
             
-        url = f"{str(backend_url or 'https://hubscape-backend-w3xi4ozhca-uc.a.run.app').rstrip('/')}/api/otp/verify"
+        if not backend_url:
+            raise RuntimeError("CRITICAL CONFIGURATION ERROR: HUBSCAPE_BACKEND_URL environment variable is missing in cloud environment!")
+        url = f"{str(backend_url).rstrip('/')}/api/otp/verify"
         headers = {}
         cap_token = self.raw_context.get("capability_token")
         if cap_token:
@@ -438,7 +442,12 @@ def require_tool_privilege(func):
             )
             return True
             
-        secret_key = os.environ.get("HUBSCAPE_HMAC_SECRET") or os.environ.get("HUBSCAPE_KMS_MASTER_KEY") or "dev_secret_key_dont_use_in_prod"
+        secret_key = os.environ.get("HUBSCAPE_HMAC_SECRET")
+        if not secret_key:
+            is_cloud = "K_SERVICE" in os.environ or "AIP_PREDICT_PORT" in os.environ
+            if is_cloud:
+                raise RuntimeError("CRITICAL CONFIGURATION ERROR: HUBSCAPE_HMAC_SECRET is missing in cloud environment!")
+            secret_key = "dev_secret_key_dont_use_in_prod"
             
         try:
             # Decode & Verify JWT HMAC

@@ -34,10 +34,8 @@ def add_platform_reminder(reminder_text: str) -> dict:
             "reminder_id": reminder_id
         }
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Error adding platform reminder: {e}\n{tb}")
+        logger.exception("Error adding platform reminder")
         return {
             "status": "error",
-            "message": f"Failed to add platform reminder: {str(e)}",
-            "traceback": tb
+            "message": f"Failed to add platform reminder: {str(e)}"
         }

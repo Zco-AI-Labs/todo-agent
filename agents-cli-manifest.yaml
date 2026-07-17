@@ -1,4 +1,4 @@
-name: "custom-agent"
+name: "todo-agent"
 acli_version: "0.5.1"
 agent_directory: "app"
 region: "us-central1"

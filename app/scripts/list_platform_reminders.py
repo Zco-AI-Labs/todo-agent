@@ -29,10 +29,8 @@ def list_platform_reminders() -> dict:
             "reminders": reminders
         }
     except Exception as e:
-        tb = traceback.format_exc()
-        logger.error(f"Error listing platform reminders: {e}\n{tb}")
+        logger.exception("Error listing platform reminders")
         return {
             "status": "error",
-            "message": f"Failed to list platform reminders: {str(e)}",
-            "traceback": tb
+            "message": f"Failed to list platform reminders: {str(e)}"
         }
